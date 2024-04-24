@@ -121,7 +121,7 @@ public:
     AnimalSimulator() : db(nullptr) {
 
         initializeDatabase();
-        loadGameState();
+       
 
         animalDescriptions = {
             {"mammals", "\033[1mMammals\033[0m are a diverse group of animals that share several key traits, such as hair or fur covering the body, the ability to give birth to live young and feed them with their mother's milk. Their advanced nervous systems allow for complex social behavior."},
@@ -177,6 +177,13 @@ public:
 
     void saveGameState() {
     lock_guard<mutex> lock(db_mutex);
+
+    char *errMsg = nullptr;
+    if (sqlite3_exec(db, "DELETE FROM GameStates;", NULL, NULL, &errMsg) != SQLITE_OK) {
+        cerr << "Failed to clear game states: " << errMsg << endl;
+        sqlite3_free(errMsg);
+        return;
+    }
 
     const char *sqlInsert = R"(
         INSERT INTO GameStates (Type, Name, color, Growth, Happiness, Appearance, Strength, Satisfaction)
@@ -235,8 +242,11 @@ public:
 
     void loadGameState() {
     db_mutex.lock();
+    trainedAnimals.clear();  // Czyszczenie listy przed wczytaniem nowego stanu
+
     const char *sqlSelect = "SELECT Type, Name, color, Growth, Happiness, Appearance, Strength, Satisfaction FROM GameStates";
     sqlite3_stmt* stmt;
+    bool hasAnimals = false;
 
     if (sqlite3_prepare_v2(db, sqlSelect, -1, &stmt, nullptr) == SQLITE_OK) {
         while (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -248,10 +258,11 @@ public:
             int appearance = sqlite3_column_int(stmt, 5);
             int strength = sqlite3_column_int(stmt, 6);
             int satisfaction = sqlite3_column_int(stmt, 7);
+            hasAnimals = true;
 
-           
             auto animal = make_shared<Animal>(type, name, color, growth, happiness, appearance, strength, satisfaction);
             trainedAnimals.push_back(animal);
+            displayAnimalDetails(*animal);
         }
         sqlite3_finalize(stmt);
     } else {
@@ -259,11 +270,39 @@ public:
     }
 
     db_mutex.unlock();
+
+    if (hasAnimals) {
+        string response;
+        cout << "\033[1mDo you want to continue with saved animals? (yes/no):\033[0m ";
+        cin >> response;
+        if (toLower(response) != "yes") {
+            clearGameState();
+        }
+    }
 }
+
+    
+    void clearGameState() {
+    const char *sqlDelete = "DELETE FROM GameStates;";
+    char *errMsg = nullptr;
+    if (sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        cerr << "Error clearing game state: " << errMsg << endl;
+        sqlite3_free(errMsg);
+    } else {
+        cout << "\033[1mGame state cleared, starting new game.\033[0m" << endl;
+        trainedAnimals.clear(); 
+    }
+}
+
+
 
     void welcome() {
         cout << "\033[1m\033[35mWelcome to the Animal Simulator. Have fun!\033[0m" << endl;
+         if (trainedAnimals.empty()) {
+            loadGameState();
+        }
     }
+
 
     Animal createAnimal() {
         string type, name, color;
@@ -305,55 +344,68 @@ public:
         return Animal(lowerType, name, color, 0, 0, 0, 0, 0);
     }
  
-    void simulate(Animal &animal) {
-        string action;
-    
-        do {
-            cout << "\033[4mPlease select the action you want to perform from the list below:\033[0m" << endl;
-            for (const auto& act : actions) {
-                cout << act << endl;
-            }
-            cin >> action;
-            string lowerAction = toLower(action);
-            animal.performAction(lowerAction);
-            animal.displayFeatures();
+   void simulate(Animal &animal) {
+    string action;
 
-            if (animal.hasReachedAdulthood()) {
-                trainedAnimals.push_back(make_shared<Animal>(animal));
-                cout << "\033[32m\033[1mCongratulations! Your pet has reached adulthood! \033[0m" << endl;
+    do {
+        cout << "\033[4mPlease select the action you want to perform from the list below:\033[0m" << endl;
+        for (const auto& act : actions) {
+            cout << act << endl;
+        }
+        cin >> action;
+        string lowerAction = toLower(action);
 
-                if (trainedAnimals.size() == 3) {
-                    cout << "\033[1m\033[35mCongratulations, you already have 3 adult pets in your family!\033[0m" << endl;
-                    for (const auto& pet : trainedAnimals) {
-                        displayAnimalDetails(*pet);
-                    }
-                    exit(0);
-                }
+        if (lowerAction == "exit") {
+            concludeSession(animal.hasReachedAdulthood());  // Decyzja o zapisie stanu
+            return;
+        }
 
-                if (getUserConfirmation("\033[1mDo you want to develop a new pet?\033[0m")) {
-                    animal = Animal ("", "", "", 0, 0, 0, 0, 0);
-                    welcome();
-                    animal = createAnimal();
-                    continue;
-                } else {
-                    cout << "\033[1m\033[35mThank you, that's it for today.\033[0m" << endl;
-                    exit(0);
-                }
+        animal.performAction(lowerAction);
+        animal.displayFeatures();
+
+        if (animal.hasReachedAdulthood()) {
+            trainedAnimals.push_back(make_shared<Animal>(animal));
+            cout << "\033[32m\033[1mCongratulations! Your pet has reached adulthood! \033[0m" << endl;
+
+            if (trainedAnimals.size() == 3) {
+                cout << "\033[1m\033[35mCongratulations, you already have 3 adult pets in your family!\033[0m" << endl;
+                concludeSession(true);
+                return;
             }
 
-            if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
-                string userResponse;
-                cout << "\033[1mDo you want to save the game state before exiting? (yes/no):\033[0m ";
-                cin >> userResponse;
-                if (toLower(userResponse) == "yes") {
-                    saveGameState(); 
-                }
-                cout << "\033[1m\033[35mThank you, that's all for today, see you.\033[0m" << endl;
-                exit(0);
+            if (!getUserConfirmation("\033[1mDo you want to develop a new pet?\033[0m")) {
+                concludeSession(true);
+                return;
+            } else {
+                // Stwórz i szkol nowe zwierzę
+                welcome();
+                animal = createAnimal();
+                continue;
             }
+        }
 
-        } while (true);
+        if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
+            concludeSession(animal.hasReachedAdulthood());  // Decyzja o zapisie stanu
+            return;
+        }
+    } while (true);
+}
+
+
+
+void concludeSession(bool save) {
+    if (save) {
+        cout << "\033[1mDo you want to save the game state before exiting? (yes/no):\033[0m ";
+        string response;
+        cin >> response;
+        if (toLower(response) == "yes") {
+            saveGameState();
+        }
     }
+    cout << "\033[1m\033[35mThank you, that's all for today, see you.\033[0m" << endl;
+    exit(0);
+}
+
 
 
     void displayAnimalDetails(const Animal &animal) {
