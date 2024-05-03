@@ -177,9 +177,8 @@ public:
 
     void saveGameState() {
     lock_guard<mutex> lock(db_mutex);
-
     char *errMsg = nullptr;
-    if (sqlite3_exec(db, "DELETE FROM GameStates;", NULL, NULL, &errMsg) != SQLITE_OK) {
+    if (sqlite3_exec(db, "DELETE FROM GameStates;", nullptr, nullptr, &errMsg) != SQLITE_OK) {
         cerr << "Failed to clear game states: " << errMsg << endl;
         sqlite3_free(errMsg);
         return;
@@ -220,7 +219,7 @@ public:
             cerr << "Failed to insert game state: " << sqlite3_errmsg(db) << std::endl;
             sqlite3_clear_bindings(stmt);
             sqlite3_reset(stmt);
-            sqlite3_exec(db, "ROLLBACK;", NULL, NULL, &errmsg);
+            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, &errmsg);
             cerr << "Rollback executed due to an error." << std::endl;
             sqlite3_free(errmsg);
             sqlite3_finalize(stmt);
@@ -233,7 +232,7 @@ public:
 
     sqlite3_finalize(stmt); 
 
-    rc = sqlite3_exec(db, "COMMIT;", NULL, NULL, &errmsg);
+    rc = sqlite3_exec(db, "COMMIT;", nullptr, nullptr, &errmsg);
     if (rc != SQLITE_OK) {
         std::cerr << "Commit error: " << errmsg << std::endl;
         sqlite3_free(errmsg);
@@ -242,7 +241,7 @@ public:
 
     void loadGameState() {
     db_mutex.lock();
-    trainedAnimals.clear();  // Czyszczenie listy przed wczytaniem nowego stanu
+    trainedAnimals.clear();
 
     const char *sqlSelect = "SELECT Type, Name, color, Growth, Happiness, Appearance, Strength, Satisfaction FROM GameStates";
     sqlite3_stmt* stmt;
@@ -272,10 +271,7 @@ public:
     db_mutex.unlock();
 
     if (hasAnimals) {
-        string response;
-        cout << "\033[1mDo you want to continue with saved animals? (yes/no):\033[0m ";
-        cin >> response;
-        if (toLower(response) != "yes") {
+        if (!getUserConfirmation("Do you want to continue with saved animals?")) {
             clearGameState();
         }
     }
@@ -293,8 +289,6 @@ public:
         trainedAnimals.clear(); 
     }
 }
-
-
 
     void welcome() {
         cout << "\033[1m\033[35mWelcome to the Animal Simulator. Have fun!\033[0m" << endl;
@@ -384,10 +378,15 @@ public:
             }
         }
 
-        if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
-            concludeSession(animal.hasReachedAdulthood());  // Decyzja o zapisie stanu
-            return;
-        }
+       if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
+    if (!trainedAnimals.empty() || animal.hasReachedAdulthood()) {  // Sprawdź, czy są wyszkolone zwierzęta
+        concludeSession(true);  // Wywołanie zapisu stanu gry
+    } else {
+        concludeSession(false);  // Zakończenie bez zapisu, jeśli nie ma co zapisywać
+    }
+    return;
+}
+
     } while (true);
 }
 
@@ -395,10 +394,7 @@ public:
 
 void concludeSession(bool save) {
     if (save) {
-        cout << "\033[1mDo you want to save the game state before exiting? (yes/no):\033[0m ";
-        string response;
-        cin >> response;
-        if (toLower(response) == "yes") {
+        if (getUserConfirmation("\033[1mDo you want to save the game state before exiting?\033[0m ")) {
             saveGameState();
         }
     }
