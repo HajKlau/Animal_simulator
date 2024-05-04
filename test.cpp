@@ -92,7 +92,7 @@ public:
         }   
     }
 
-    void displayFeatures() {
+    void displayFeatures() const {
         cout << "\033[32m\033[1m" << name << " is a " << color << " " << type << " with the following features:\033[0m " << endl;
         for (const auto &feature : features) {
             cout << feature.first << ": " << feature.second << endl;
@@ -239,6 +239,18 @@ public:
     }
 }
 
+    void clearGameState() {
+    const char *sqlDelete = "DELETE FROM GameStates;";
+    char *errMsg = nullptr;
+    if (sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        cerr << "Error clearing game state: " << errMsg << endl;
+        sqlite3_free(errMsg);
+    } else {
+        cout << "\033[1mGame state cleared, starting new game.\033[0m" << endl;
+        trainedAnimals.clear(); 
+    }
+}
+
     void loadGameState() {
     db_mutex.lock();
     trainedAnimals.clear();
@@ -277,19 +289,6 @@ public:
     }
 }
 
-    
-    void clearGameState() {
-    const char *sqlDelete = "DELETE FROM GameStates;";
-    char *errMsg = nullptr;
-    if (sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        cerr << "Error clearing game state: " << errMsg << endl;
-        sqlite3_free(errMsg);
-    } else {
-        cout << "\033[1mGame state cleared, starting new game.\033[0m" << endl;
-        trainedAnimals.clear(); 
-    }
-}
-
     void welcome() {
         cout << "\033[1m\033[35mWelcome to the Animal Simulator. Have fun!\033[0m" << endl;
          if (trainedAnimals.empty()) {
@@ -297,6 +296,15 @@ public:
         }
     }
 
+    void concludeSession(bool save) {
+    if (save) {
+        if (getUserConfirmation("\033[1mDo you want to save the game state before exiting?\033[0m ")) {
+            saveGameState();
+        }
+    }
+    cout << "\033[1m\033[35mThank you, that's all for today, see you.\033[0m" << endl;
+    exit(0);
+}
 
     Animal createAnimal() {
         string type, name, color;
@@ -350,8 +358,7 @@ public:
         string lowerAction = toLower(action);
 
         if (lowerAction == "exit") {
-            concludeSession(animal.hasReachedAdulthood());  // Decyzja o zapisie stanu
-            return;
+            concludeSession(animal.hasReachedAdulthood()); 
         }
 
         animal.performAction(lowerAction);
@@ -371,38 +378,23 @@ public:
                 concludeSession(true);
                 return;
             } else {
-                // Stwórz i szkol nowe zwierzę
                 welcome();
                 animal = createAnimal();
                 continue;
             }
         }
 
-       if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
-    if (!trainedAnimals.empty() || animal.hasReachedAdulthood()) {  // Sprawdź, czy są wyszkolone zwierzęta
-        concludeSession(true);  // Wywołanie zapisu stanu gry
-    } else {
-        concludeSession(false);  // Zakończenie bez zapisu, jeśli nie ma co zapisywać
-    }
-    return;
-}
+            if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
+            if (!trainedAnimals.empty() || animal.hasReachedAdulthood()) {  
+                concludeSession(true);  
+            } else {
+            concludeSession(false); 
+            }
+            return;
+        }
 
     } while (true);
 }
-
-
-
-void concludeSession(bool save) {
-    if (save) {
-        if (getUserConfirmation("\033[1mDo you want to save the game state before exiting?\033[0m ")) {
-            saveGameState();
-        }
-    }
-    cout << "\033[1m\033[35mThank you, that's all for today, see you.\033[0m" << endl;
-    exit(0);
-}
-
-
 
     void displayAnimalDetails(const Animal &animal) {
         cout << "\033[1m" << endl << "Name: " << animal.name << endl << "Color: " << animal.color << endl <<"Type: " << animal.type << endl << endl << "Trained features: \033[0m" << endl;
