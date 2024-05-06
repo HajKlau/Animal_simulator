@@ -436,5 +436,30 @@ continue;: Instrukcja continue powoduje przejście do kolejnej iteracji pętli, 
 } else {: Ta część kodu wykonuje się, jeśli warunek if z linii 1 zwrócił false, co oznacza, że użytkownik nie wyraził zgody na utworzenie nowego zwierzaka.
 cout << "\033[1m\033[35mThank you, that's it for today.\033[0m" << endl;: Wyświetlenie komunikatu podziękowania za dzisiejszą interakcję.
 exit(0);: Wywołanie funkcji exit z argumentem 0 powoduje natychmiastowe zakończenie programu. Jeśli użytkownik nie chce rozwijać nowego zwierzaka, program kończy się po wyświetleniu komunikatu podziękowania.
+
+
+
+
+
+
+#pragma once to preprocesorowa dyrektywa używana w programowaniu w C i C++, która pomaga zapobiegać wielokrotnemu włączeniu tego samego pliku nagłówkowego w jednym pliku źródłowym. Jest to nowoczesna i bardziej czytelna alternatywa dla tradycyjnych strażników włączenia, które wykorzystują dyrektywy #ifndef, #define, i #endif.
+Działanie #pragma once:
+
+Gdy kompilator napotka #pragma once w pliku nagłówkowym, zapamiętuje ścieżkę do tego pliku i gwarantuje, że jego zawartość nie zostanie przetworzona więcej niż raz, niezależnie od tego, ile razy jest dołączany (przy użyciu #include) w projekcie. To zapobiega problemom związanych z definicjami zmiennych, funkcji, klas itp., które mogą wystąpić, gdy ten sam plik nagłówkowy zostanie załączony wielokrotnie.
+Zalety #pragma once:
+Prostota: Nie wymaga definiowania unikalnych makr dla każdego pliku nagłówkowego.
+Zmniejszenie ryzyka błędów: Nie ma ryzyka konfliktu nazw makr, które mogą wystąpić przy korzystaniu ze strażników włączenia.
+Potencjalnie szybsza kompilacja: Kompilator może efektywniej zarządzać plikami nagłówkowymi, wiedząc, że nie musi ich przetwarzać wielokrotnie.
+Wady:
+Wsparcie: Chociaż #pragma once jest szeroko wspierane przez nowoczesne kompilatory C i C++, nie jest częścią oficjalnego standardu ISO C++, co teoretycznie może stanowić problem w przypadku korzystania z bardzo starych lub bardzo nietypowych kompilatorów. W praktyce jednak większość środowisk programistycznych obsługuje tę dyrektywę.
+Dla porównania, tradycyjne strażniki włączenia wyglądają tak:
+
+cpp
+#ifndef SOME_UNIQUE_NAME
+#define SOME_UNIQUE_NAME
+// Kod nagłówka
+#endif // SOME_UNIQUE_NAME
+
+Te muszą być unikalne w całym projekcie, co czasem może prowadzić do konfliktów, szczególnie w dużych projektach z wieloma bibliotekami. #pragma once eliminuje te ryzyka i jest zalecane do użycia tam, gdzie jest wspierane.
         
         

@@ -1,128 +1,14 @@
+#include "AnimalSimulator.h"
+#include "Animal.h"
 #include <iostream>
 #include <string>
-#include <unordered_map>
-#include <vector>
-#include <algorithm>
-#include <cctype>
 #include <memory>
 #include <sqlite3.h>
 #include <mutex>
 
-
-using namespace std;
-
-
-string toLower(const string &str) {
-    string lowerStr;
-    lowerStr.reserve(str.size());
-    for (char c : str) {
-        lowerStr += tolower(c);
-    }
-    return lowerStr;
-}
-
-bool getUserConfirmation(const string &question) {
-    string response;
-    while(true) {
-        cout << question << (" \033[1m(yes/no)\033[0m");
-        cin >> response;
-        string lowerResponse = toLower(response);
-
-        if (lowerResponse == "yes") {
-            return true;
-        } else if (lowerResponse == "no"){
-            return false;
-        } else {
-            cout << "\033[1m\033[31mPlease enter 'yes' or 'no'.\033[0m" << endl;
-        }
-    }
-}
-
-bool isValidInput (const string &input) {
-    if (input.length() > 20) {
-        cout << "\033[1m\033[31mError: Input is too long. Maximum 20 characters allowed.\033[0m" << endl;
-        return false;
-    }
-
-for (char c : input) {
-    if (!isalnum(c)) {
-        cout << "\033[1m\033[31mError: Invalid characters detected. Only letters and digits are allowed.\033[0m" << endl;
-        return false;
-    }
-}
-
-return true;
-
-}
-
-
-class Animal {
-public:
-    string type;
-    string name;
-    string color;
-    unordered_map<string, int> features;
-
-    Animal(string type, string name, string color, int growth, int happiness, int appearance, int strength, int satisfaction) : type(type), name(name), color(color) {
-        features["growth"] = growth;
-        features["happiness"] = happiness;
-        features["appearance"] = appearance;
-        features["strength"] = strength;
-        features["satisfaction"] = satisfaction;
-    }
-
-    void performAction(const string &action) {
-        if (action == "eat") {
-            features["growth"] += 1;
-            cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["growth"] << " growth" << "\033[0m" << endl;
-        } else if (action == "play") {
-            features["happiness"] += 1;
-            cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["happiness"] << " happiness" << "\033[0m" <<  endl;
-        } else if (action == "wash") {
-            features["appearance"] += 1;
-            cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["appearance"] << " appearance" << "\033[0m" << endl;
-        } else if (action == "sleep") {
-            features["strength"] += 1;
-            cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["strength"] << " strength" << "\033[0m" << endl;
-        } else if (action == "stroke") {
-            features["satisfaction"] += 1;
-            cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["satisfaction"] << " satisfaction" << "\033[0m" << endl;
-        } else {
-            cout << "\033[31m\033[1mUnknown action: " << "'" << action << "'. No changes made.\033[0m" << endl;
-        }   
-    }
-
-    void displayFeatures() const {
-        cout << "\033[32m\033[1m" << name << " is a " << color << " " << type << " with the following features:\033[0m " << endl;
-        for (const auto &feature : features) {
-            cout << feature.first << ": " << feature.second << endl;
-        }
-    }
-
-    bool hasReachedAdulthood() const {
-        for (const auto &feature : features) {
-            if (feature.second < 1) {
-                return false;
-            }
-        } 
-        return true;
-    }
-};
-
-class AnimalSimulator {
-
-private: 
-    unordered_map<string, string> animalDescriptions;
-    vector<string> actions;
-    vector<shared_ptr<Animal>> trainedAnimals;
-    sqlite3* db;
-    mutex db_mutex;
-
-public:
-    AnimalSimulator() : db(nullptr) {
+AnimalSimulator::AnimalSimulator() : db(nullptr) {
 
         initializeDatabase();
-       
 
         animalDescriptions = {
             {"mammals", "\033[1mMammals\033[0m are a diverse group of animals that share several key traits, such as hair or fur covering the body, the ability to give birth to live young and feed them with their mother's milk. Their advanced nervous systems allow for complex social behavior."},
@@ -136,13 +22,13 @@ public:
     
     }
 
-        ~AnimalSimulator() {
+AnimalSimulator::~AnimalSimulator() {
         if (db) {
             sqlite3_close(db);
         }
     }
 
-    void initializeDatabase() {
+void AnimalSimulator::initializeDatabase() {
         int rc = sqlite3_open("/home/klahaj/nauka_programowania/Animal_simulator/game_state.db", &db);
         if (rc != SQLITE_OK) {
             cerr << "Error opening SQLite database: " << sqlite3_errmsg(db) << endl;
@@ -176,7 +62,7 @@ public:
     }
 }
 
-    void saveGameState() {
+void AnimalSimulator::saveGameState() {
     lock_guard<mutex> lock(db_mutex);
     char *errMsg = nullptr;
     if (sqlite3_exec(db, "DELETE FROM GameStates;", nullptr, nullptr, &errMsg) != SQLITE_OK) {
@@ -240,7 +126,7 @@ public:
     }
 }
 
-    void clearGameState() {
+void AnimalSimulator::clearGameState() {
     const char *sqlDelete = "DELETE FROM GameStates;";
     char *errMsg = nullptr;
     if (sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg) != SQLITE_OK) {
@@ -252,7 +138,7 @@ public:
     }
 }
 
-    void loadGameState() {
+void AnimalSimulator::loadGameState() {
     db_mutex.lock();
     trainedAnimals.clear();
 
@@ -290,14 +176,14 @@ public:
     }
 }
 
-    void welcome() {
+void AnimalSimulator::welcome() {
         cout << "\033[1m\033[35mWelcome to the Animal Simulator. Have fun!\033[0m" << endl;
          if (trainedAnimals.empty()) {
             loadGameState();
         }
     }
 
-    void concludeSession(bool save) {
+    void AnimalSimulator::concludeSession(bool save) {
     if (save) {
         if (getUserConfirmation("\033[1mDo you want to save the game state before exiting?\033[0m ")) {
             saveGameState();
@@ -307,7 +193,7 @@ public:
     exit(0);
 }
 
-    Animal createAnimal() {
+Animal AnimalSimulator::createAnimal() {
         string type, name, color;
         cout << "\033[4mPlease select the type of animal from the list below and enter it or 'exit' to quit:\033[0m" << endl;
         for (const auto& pair : animalDescriptions) {
@@ -346,8 +232,7 @@ public:
         }
         return Animal(lowerType, name, color, 0, 0, 0, 0, 0);
     }
- 
-   void simulate(Animal &animal) {
+void AnimalSimulator::simulate(Animal &animal) {
     string action;
 
     do {
@@ -397,22 +282,11 @@ public:
     } while (true);
 }
 
-    void displayAnimalDetails(const Animal &animal) {
-        cout << "\033[1m" << endl << "Name: " << animal.name << endl << "Color: " << animal.color << endl <<"Type: " << animal.type << endl << endl << "Trained features: \033[0m" << endl;
-        for (const auto& feature : animal.features) {
-            cout << feature.first << ": " << feature.second << endl;
-        }
+void AnimalSimulator::displayAnimalDetails(const Animal &animal) {
+    cout << "\033[1m" << endl << "Name: " << animal.name << endl << "Color: " << animal.color << endl <<"Type: " << animal.type << endl << endl << "Trained features: \033[0m" << endl;
+    for (const auto& feature : animal.features) {
+        cout << feature.first << ": " << feature.second << endl;
     }
-
-};
-  
-  
-int main() {
-    sqlite3_config(SQLITE_CONFIG_SERIALIZED);
-    AnimalSimulator simulator;
-    simulator.welcome();
-    Animal animal = simulator.createAnimal();
-    simulator.simulate(animal);
-
-    return 0;
 }
+
+
