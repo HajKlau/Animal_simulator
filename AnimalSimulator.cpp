@@ -1,4 +1,5 @@
 #include "AnimalSimulator.h"
+#include "Utility.h"
 #include "Animal.h"
 #include <iostream>
 #include <string>

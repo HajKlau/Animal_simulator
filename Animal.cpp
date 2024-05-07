@@ -1,4 +1,5 @@
 #include "Animal.h"
+#include "Utility.h"
 #include <iostream>
 #include <cctype>
 
