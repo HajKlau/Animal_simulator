@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+build/
+
+# custom files
+*.db
+
+# My Notes
+project_description
+project_description_2
