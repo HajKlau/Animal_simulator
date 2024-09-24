@@ -30,7 +30,7 @@ AnimalSimulator::~AnimalSimulator() {
     }
 
 void AnimalSimulator::initializeDatabase() {
-        int rc = sqlite3_open("/home/klahaj/nauka_programowania/Animal_simulator/game_state.db", &db);
+        int rc = sqlite3_open("game_state.db", &db);
         if (rc != SQLITE_OK) {
             cerr << "Error opening SQLite database: " << sqlite3_errmsg(db) << endl;
             sqlite3_close(db);
