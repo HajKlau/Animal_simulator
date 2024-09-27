@@ -10,11 +10,11 @@ public:
     std::string type;
     std::string name;
     std::string color;
-    std::unordered_map<std::string, int> features;
+    std::unordered_map<std::string, int> traits;
 
     Animal(std::string type, std::string name, std::string color, int growth, int happiness, int appearance, int strength, int satisfaction);
 
     void performAction(const std::string &action);
-    void displayFeatures() const;
+    void displayTraits() const;
     bool hasReachedAdulthood() const;
 };

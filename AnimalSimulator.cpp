@@ -19,7 +19,7 @@ AnimalSimulator::AnimalSimulator() : db(nullptr)
         {"birds", "\033[1mBirds\033[0m are warm-blooded animals characterized by the presence of feathers, a beak without teeth, and folding wings that in most cases allow flight."},
         {"fish", "\033[1mFish\033[0m are cold-blooded aquatic animals that have fins and breathe with gills. They inhabit a variety of aquatic environments, from freshwater to salty oceans."},
         {"arthropods", "\033[1mArthropods\033[0m are the most numerous group of animals on Earth, including insects, spiders, crustaceans and others. They are characterized by a segmented body, an external skeleton and paired, differentiated limbs."}};
-    actions = {"eat", "play", "wash", "sleep", "stroke"};
+    actions = {"eat", "play", "wash", "sleep", "pet"};
 }
 
 AnimalSimulator::~AnimalSimulator()
@@ -101,11 +101,11 @@ void AnimalSimulator::saveGameState()
         sqlite3_bind_text(stmt, 1, animal->type.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 2, animal->name.c_str(), -1, SQLITE_STATIC);
         sqlite3_bind_text(stmt, 3, animal->color.c_str(), -1, SQLITE_STATIC);
-        sqlite3_bind_int(stmt, 4, animal->features["growth"]);
-        sqlite3_bind_int(stmt, 5, animal->features["happiness"]);
-        sqlite3_bind_int(stmt, 6, animal->features["appearance"]);
-        sqlite3_bind_int(stmt, 7, animal->features["strength"]);
-        sqlite3_bind_int(stmt, 8, animal->features["satisfaction"]);
+        sqlite3_bind_int(stmt, 4, animal->traits["growth"]);
+        sqlite3_bind_int(stmt, 5, animal->traits["happiness"]);
+        sqlite3_bind_int(stmt, 6, animal->traits["appearance"]);
+        sqlite3_bind_int(stmt, 7, animal->traits["strength"]);
+        sqlite3_bind_int(stmt, 8, animal->traits["satisfaction"]);
 
         rc = sqlite3_step(stmt);
         if (rc != SQLITE_DONE)
@@ -221,7 +221,7 @@ void AnimalSimulator::concludeSession(bool save)
 Animal AnimalSimulator::createAnimal()
 {
     string type, name, color;
-    cout << "\033[4mPlease select the type of animal from the list below and enter it or 'exit' to quit:\033[0m" << endl;
+    cout << "\033[4mPlease select the type of animal from the list below and enter it:\033[0m" << endl;
     for (const auto &pair : animalDescriptions)
     {
         cout << pair.first << endl;
@@ -229,10 +229,6 @@ Animal AnimalSimulator::createAnimal()
     cin >> type;
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
     string lowerType = toLower(type);
-    if (toLower(type) == "exit")
-    {
-        concludeSession(false);
-    }
     auto description = animalDescriptions.find(lowerType);
     if (description != animalDescriptions.end())
     {
@@ -294,7 +290,7 @@ void AnimalSimulator::simulate(Animal &animal)
         }
 
         animal.performAction(lowerAction);
-        animal.displayFeatures();
+        animal.displayTraits();
 
         if (animal.hasReachedAdulthood())
         {
@@ -329,9 +325,9 @@ void AnimalSimulator::displayAnimalDetails(const Animal &animal)
          << "Color: " << animal.color << endl
          << "Type: " << animal.type << endl
          << endl
-         << "Trained features: \033[0m" << endl;
-    for (const auto &feature : animal.features)
+         << "Trained traits: \033[0m" << endl;
+    for (const auto &trait : animal.traits)
     {
-        cout << feature.first << ": " << feature.second << endl;
+        cout << trait.first << ": " << trait.second << endl;
     }
 }

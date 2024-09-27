@@ -5,39 +5,39 @@
 
 Animal::Animal(string type, string name, string color, int growth, int happiness, int appearance, int strength, int satisfaction) : type(type), name(name), color(color)
 {
-    features["growth"] = growth;
-    features["happiness"] = happiness;
-    features["appearance"] = appearance;
-    features["strength"] = strength;
-    features["satisfaction"] = satisfaction;
+    traits["growth"] = growth;
+    traits["happiness"] = happiness;
+    traits["appearance"] = appearance;
+    traits["strength"] = strength;
+    traits["satisfaction"] = satisfaction;
 }
 
 void Animal::performAction(const string &action)
 {
     if (action == "eat")
     {
-        features["growth"] += 1;
-        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["growth"] << " growth" << "\033[0m" << endl;
+        traits["growth"] += 1;
+        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << traits["growth"] << " growth" << "\033[0m" << endl;
     }
     else if (action == "play")
     {
-        features["happiness"] += 1;
-        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["happiness"] << " happiness" << "\033[0m" << endl;
+        traits["happiness"] += 1;
+        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << traits["happiness"] << " happiness" << "\033[0m" << endl;
     }
     else if (action == "wash")
     {
-        features["appearance"] += 1;
-        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["appearance"] << " appearance" << "\033[0m" << endl;
+        traits["appearance"] += 1;
+        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << traits["appearance"] << " appearance" << "\033[0m" << endl;
     }
     else if (action == "sleep")
     {
-        features["strength"] += 1;
-        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["strength"] << " strength" << "\033[0m" << endl;
+        traits["strength"] += 1;
+        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << traits["strength"] << " strength" << "\033[0m" << endl;
     }
-    else if (action == "stroke")
+    else if (action == "pet")
     {
-        features["satisfaction"] += 1;
-        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << features["satisfaction"] << " satisfaction" << "\033[0m" << endl;
+        traits["satisfaction"] += 1;
+        cout << "\033[1mPerformed: " << action << ", " << name << " now has " << traits["satisfaction"] << " satisfaction" << "\033[0m" << endl;
     }
     else
     {
@@ -45,20 +45,20 @@ void Animal::performAction(const string &action)
     }
 }
 
-void Animal::displayFeatures() const
+void Animal::displayTraits() const
 {
-    cout << "\033[32m\033[1m" << name << " is a " << color << " " << type << " with the following features:\033[0m " << endl;
-    for (const auto &feature : features)
+    cout << "\033[32m\033[1m" << name << " is a " << color << " " << type << " with the following traits:\033[0m " << endl;
+    for (const auto &trait : traits)
     {
-        cout << feature.first << ": " << feature.second << endl;
+        cout << trait.first << ": " << trait.second << endl;
     }
 }
 
 bool Animal::hasReachedAdulthood() const
 {
-    for (const auto &feature : features)
+    for (const auto &trait : traits)
     {
-        if (feature.second < 1)
+        if (trait.second < 1)
         {
             return false;
         }
