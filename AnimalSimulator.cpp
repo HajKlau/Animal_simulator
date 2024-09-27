@@ -30,11 +30,11 @@ AnimalSimulator::~AnimalSimulator() {
     }
 
 void AnimalSimulator::initializeDatabase() {
-        int rc = sqlite3_open("game_state.db", &db);
-        if (rc != SQLITE_OK) {
-            cerr << "Error opening SQLite database: " << sqlite3_errmsg(db) << endl;
-            sqlite3_close(db);
-            exit(1);
+    int rc = sqlite3_open("game_state.db", &db);
+    if (rc != SQLITE_OK) {
+        cerr << "Error opening SQLite database: " << sqlite3_errmsg(db) << endl;
+        sqlite3_close(db);
+        concludeSession(false);
     }
 
     const char *sqlCreateTable = R"(
@@ -65,12 +65,7 @@ void AnimalSimulator::initializeDatabase() {
 
 void AnimalSimulator::saveGameState() {
     lock_guard<mutex> lock(db_mutex);
-    char *errMsg = nullptr;
-    if (sqlite3_exec(db, "DELETE FROM GameStates;", nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        cerr << "Failed to clear game states: " << errMsg << endl;
-        sqlite3_free(errMsg);
-        return;
-    }
+    clearGameState();
 
     const char *sqlInsert = R"(
         INSERT INTO GameStates (Type, Name, color, Growth, Happiness, Appearance, Strength, Satisfaction)
@@ -78,17 +73,17 @@ void AnimalSimulator::saveGameState() {
     )";
 
     sqlite3_stmt *stmt;
-    char *errmsg = nullptr;
-    int rc = sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, &errmsg);
+    char *errMsg = nullptr;
+    int rc = sqlite3_exec(db, "BEGIN TRANSACTION;", nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
-        cerr << "Begin transaction error: " << errmsg << endl;
-        sqlite3_free(errmsg);
+        cerr << "Begin transaction error, game will not be saved: " << errMsg << endl;
+        sqlite3_free(errMsg);
         return;
     }
 
     rc = sqlite3_prepare_v2(db, sqlInsert, -1, &stmt, nullptr);
     if (rc != SQLITE_OK) {
-        cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        cerr << "Failed to prepare statement, game will not be saved: " << sqlite3_errmsg(db) << endl;
         return;
     }
 
@@ -104,12 +99,17 @@ void AnimalSimulator::saveGameState() {
 
         rc = sqlite3_step(stmt);
         if (rc != SQLITE_DONE) {
-            cerr << "Failed to insert game state: " << sqlite3_errmsg(db) << std::endl;
+            cerr << "Failed to insert game state, game will not be saved: " << sqlite3_errmsg(db) << endl;
             sqlite3_clear_bindings(stmt);
             sqlite3_reset(stmt);
-            sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, &errmsg);
-            cerr << "Rollback executed due to an error." << std::endl;
-            sqlite3_free(errmsg);
+            int rollback_rc = sqlite3_exec(db, "ROLLBACK;", nullptr, nullptr, &errMsg);
+            if (rollback_rc != SQLITE_OK) {
+                cerr << "Failed to rollback transaction: " << errMsg << endl;
+                sqlite3_free(errMsg);
+            } else {
+                cout << "Rollback executed successfully." << endl;
+            }
+
             sqlite3_finalize(stmt);
             return;
         }
@@ -120,55 +120,52 @@ void AnimalSimulator::saveGameState() {
 
     sqlite3_finalize(stmt); 
 
-    rc = sqlite3_exec(db, "COMMIT;", nullptr, nullptr, &errmsg);
+    rc = sqlite3_exec(db, "COMMIT;", nullptr, nullptr, &errMsg);
     if (rc != SQLITE_OK) {
-        std::cerr << "Commit error: " << errmsg << std::endl;
-        sqlite3_free(errmsg);
+        sqlite3_free(errMsg);
     }
 }
 
 void AnimalSimulator::clearGameState() {
     const char *sqlDelete = "DELETE FROM GameStates;";
     char *errMsg = nullptr;
-    if (sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg) != SQLITE_OK) {
+    int rc = sqlite3_exec(db, sqlDelete, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK) {
         cerr << "Error clearing game state: " << errMsg << endl;
         sqlite3_free(errMsg);
-    } else {
-        cout << "\033[1mGame state cleared, starting new game.\033[0m" << endl;
-        trainedAnimals.clear(); 
+        exit(1);
     }
 }
 
 void AnimalSimulator::loadGameState() {
-    db_mutex.lock();
+    lock_guard<mutex> lock(db_mutex);
     trainedAnimals.clear();
 
     const char *sqlSelect = "SELECT Type, Name, color, Growth, Happiness, Appearance, Strength, Satisfaction FROM GameStates";
     sqlite3_stmt* stmt;
     bool hasAnimals = false;
 
-    if (sqlite3_prepare_v2(db, sqlSelect, -1, &stmt, nullptr) == SQLITE_OK) {
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            string type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-            string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-            string color = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-            int growth = sqlite3_column_int(stmt, 3);
-            int happiness = sqlite3_column_int(stmt, 4);
-            int appearance = sqlite3_column_int(stmt, 5);
-            int strength = sqlite3_column_int(stmt, 6);
-            int satisfaction = sqlite3_column_int(stmt, 7);
-            hasAnimals = true;
-
-            auto animal = make_shared<Animal>(type, name, color, growth, happiness, appearance, strength, satisfaction);
-            trainedAnimals.push_back(animal);
-            displayAnimalDetails(*animal);
-        }
-        sqlite3_finalize(stmt);
-    } else {
-        cerr << "Failed to prepare select statement: " << sqlite3_errmsg(db) << endl;
+    int rc = sqlite3_prepare_v2(db, sqlSelect, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK) {
+        cerr << "Failed to prepare select statement, save will not be loaded: " << sqlite3_errmsg(db) << endl;
+        return;
     }
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        string type = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        string name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        string color = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        int growth = sqlite3_column_int(stmt, 3);
+        int happiness = sqlite3_column_int(stmt, 4);
+        int appearance = sqlite3_column_int(stmt, 5);
+        int strength = sqlite3_column_int(stmt, 6);
+        int satisfaction = sqlite3_column_int(stmt, 7);
+        hasAnimals = true;
 
-    db_mutex.unlock();
+        auto animal = make_shared<Animal>(type, name, color, growth, happiness, appearance, strength, satisfaction);
+        trainedAnimals.push_back(animal);
+        displayAnimalDetails(*animal);
+    }
+    sqlite3_finalize(stmt);
 
     if (hasAnimals) {
         if (!getUserConfirmation("Do you want to continue with saved animals?")) {
@@ -184,7 +181,7 @@ void AnimalSimulator::welcome() {
         }
     }
 
-    void AnimalSimulator::concludeSession(bool save) {
+void AnimalSimulator::concludeSession(bool save) {
     if (save) {
         if (getUserConfirmation("\033[1mDo you want to save the game state before exiting?\033[0m ")) {
             saveGameState();
@@ -192,7 +189,7 @@ void AnimalSimulator::welcome() {
     }
     cout << "\033[1m\033[35mThank you, that's all for today, see you.\033[0m" << endl;
     exit(0);
-}
+    }
 
 Animal AnimalSimulator::createAnimal() {
         string type, name, color;
@@ -204,7 +201,7 @@ Animal AnimalSimulator::createAnimal() {
         cin.ignore(numeric_limits<streamsize>::max(), '\n');
         string lowerType = toLower(type);
         if (toLower(type) == "exit") {
-            exit(0);
+            concludeSession(false);
         }
         auto description = animalDescriptions.find(lowerType);
         if (description != animalDescriptions.end()) {
@@ -241,11 +238,12 @@ void AnimalSimulator::simulate(Animal &animal) {
         for (const auto& act : actions) {
             cout << act << endl;
         }
+        cout << endl << "Or type 'exit' to exit the program." << endl << "Action: ";
         cin >> action;
         string lowerAction = toLower(action);
 
         if (lowerAction == "exit") {
-            concludeSession(animal.hasReachedAdulthood()); 
+            concludeSession(!trainedAnimals.empty()); 
         }
 
         animal.performAction(lowerAction);
@@ -258,26 +256,15 @@ void AnimalSimulator::simulate(Animal &animal) {
             if (trainedAnimals.size() == 3) {
                 cout << "\033[1m\033[35mCongratulations, you already have 3 adult pets in your family!\033[0m" << endl;
                 concludeSession(true);
-                return;
             }
 
             if (!getUserConfirmation("\033[1mDo you want to develop a new pet?\033[0m")) {
                 concludeSession(true);
-                return;
             } else {
                 welcome();
                 animal = createAnimal();
                 continue;
             }
-        }
-
-            if(!getUserConfirmation("\033[1mDo you want to continue taking care of the animal\033[0m")) {
-            if (!trainedAnimals.empty() || animal.hasReachedAdulthood()) {  
-                concludeSession(true);  
-            } else {
-            concludeSession(false); 
-            }
-            return;
         }
 
     } while (true);

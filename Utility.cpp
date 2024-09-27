@@ -37,13 +37,13 @@ bool isValidInput (const string &input) {
         return false;
     }
 
-for (char c : input) {
-    if (!isalnum(c)) {
-        cout << "\033[1m\033[31mError: Invalid characters detected. Only letters and digits are allowed.\033[0m" << endl;
-        return false;
+    for (char c : input) {
+        if (!isalnum(c)) {
+            cout << "\033[1m\033[31mError: Invalid characters detected. Only letters and digits are allowed.\033[0m" << endl;
+            return false;
+        }
     }
-}
 
-return true;
+    return true;
 
 }
