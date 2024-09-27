@@ -1,7 +1,8 @@
 #include "AnimalSimulator.h"
 #include <sqlite3.h>
 
-int main() {
+int main()
+{
     sqlite3_config(SQLITE_CONFIG_SERIALIZED);
     AnimalSimulator simulator;
     simulator.welcome();

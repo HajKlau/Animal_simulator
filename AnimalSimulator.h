@@ -9,14 +9,16 @@
 
 using namespace std;
 
-class AnimalSimulator {
+class AnimalSimulator
+{
 
-private: 
+private:
     unordered_map<string, string> animalDescriptions;
     vector<string> actions;
     vector<shared_ptr<Animal>> trainedAnimals;
-    sqlite3* db;
+    sqlite3 *db;
     mutex db_mutex;
+
 public:
     AnimalSimulator();
     ~AnimalSimulator();
@@ -30,5 +32,4 @@ public:
     Animal createAnimal();
     void simulate(Animal &animal);
     void displayAnimalDetails(const Animal &animal);
-
 };
