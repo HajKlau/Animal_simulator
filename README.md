@@ -24,9 +24,9 @@ Animal Simulator is a program that allows you to add an animal of a selected typ
 
 ## Running the app
 
-	```
-	docker run -it animal-simulator
-	```
+```
+docker run -it animal-simulator
+```
 
 ## Additional Notes
 - We need to run the container with -it flags as it requires access to `STDIN`
